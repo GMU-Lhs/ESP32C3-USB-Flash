@@ -66,8 +66,10 @@
 </div>
 
 <script type="module">
-  import { ESPLoader, Transport } from
-    "https://cdn.jsdelivr.net/npm/esptool-js@0.4.1/dist/web/index.js";
+  import {
+    ESPLoader,
+    Transport
+  } from "https://unpkg.com/esptool-js@0.4.1/dist/web/esptool.js";
 
   let port, transport, esptool;
 
@@ -104,9 +106,8 @@
 
       const files = [];
       document.querySelectorAll("#files > div").forEach(r => {
-        const f = r.querySelector("input[type=file]").files[0];
-        const o = r.querySelector("input[type=text]").value;
-
+        const f = r.querySelector('input[type="file"]').files[0];
+        const o = r.querySelector('input[type="text"]').value;
         if (f) files.push({ file: f, offset: parseInt(o, 16) });
       });
 
@@ -130,6 +131,7 @@
     }
   };
 </script>
+
 
 </body>
 </html>
