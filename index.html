@@ -6,6 +6,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
+    <script>
+  const connectBtn = document.getElementById("connectBtn");
+
+  let port;
+
+  connectBtn.addEventListener("click", async () => {
+    if (!("serial" in navigator)) {
+      alert("当前浏览器不支持 Web Serial API，请使用 Chrome 或 Edge");
+      return;
+    }
+
+    try {
+      // 请求串口设备（ESP32-C3）
+      port = await navigator.serial.requestPort({
+        filters: [
+          // Espressif VID（常见）
+          { usbVendorId: 0x303A }
+        ]
+      });
+
+      await port.open({
+        baudRate: 115200
+      });
+
+      connectBtn.innerText = "已连接 ESP32-C3";
+      connectBtn.disabled = true;
+
+      console.log("ESP32-C3 已连接", port);
+
+      alert("ESP32-C3 连接成功！");
+    } catch (err) {
+      console.error("连接失败:", err);
+      alert("未连接设备或用户取消");
+    }
+  });
+</script>
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #0f172a;
