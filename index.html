@@ -105,7 +105,8 @@
       const files = [];
       document.querySelectorAll("#files > div").forEach(r => {
         const f = r.querySelector("input[type=file]").files[0];
-        const o = r.querySelector("input[type="text"]").value;
+        const o = r.querySelector("input[type=text]").value;
+
         if (f) files.push({ file: f, offset: parseInt(o, 16) });
       });
 
