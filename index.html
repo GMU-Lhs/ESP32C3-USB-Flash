@@ -68,64 +68,66 @@
 <script type="module">
   import { ESPLoader, Transport } from
     "https://unpkg.com/esptool-js@0.4.6/dist/web/index.js";
-let port, transport, esptool;
 
-const logEl = document.getElementById("log");
-const log = t => logEl.textContent += t + "\n";
+  let port, transport, esptool;
 
-document.getElementById("add").onclick = () => {
-  const row = document.createElement("div");
-  row.innerHTML = `
-    <input type="file" accept=".bin">
-    Offset:
-    <input type="text" value="0x10000">
-  `;
-  document.getElementById("files").appendChild(row);
-};
+  const logEl = document.getElementById("log");
+  const log = t => logEl.textContent += t + "\n";
 
-document.getElementById("flash").onclick = async () => {
-  try {
-    port = await navigator.serial.requestPort({
-      filters: [{ usbVendorId: 0x303A }]
-    });
-    await port.open({ baudRate: 115200 });
+  document.getElementById("add").onclick = () => {
+    const row = document.createElement("div");
+    row.innerHTML = `
+      <input type="file" accept=".bin">
+      Offset:
+      <input type="text" value="0x10000">
+    `;
+    document.getElementById("files").appendChild(row);
+  };
 
-    transport = new ESPLoader.Transport(port);
-    esptool = new ESPLoader.ESPLoader({
-      transport,
-      baudrate: 115200,
-      terminal: { write: log }
-    });
+  document.getElementById("flash").onclick = async () => {
+    try {
+      log("请求串口...");
+      port = await navigator.serial.requestPort({
+        filters: [{ usbVendorId: 0x303A }]
+      });
+      await port.open({ baudRate: 115200 });
 
-    log("连接设备...");
-    await esptool.main();
+      transport = new Transport(port);
+      esptool = new ESPLoader({
+        transport,
+        baudrate: 115200,
+        terminal: { write: log }
+      });
 
-    const files = [];
-    document.querySelectorAll("#files > div").forEach(r => {
-      const f = r.querySelector("input[type=file]").files[0];
-      const o = r.querySelector("input[type=text]").value;
-      if (f) files.push({ file: f, offset: parseInt(o, 16) });
-    });
+      log("连接 ESP32-C3...");
+      await esptool.main();
 
-    if (!files.length) {
-      alert("请至少选择一个固件文件");
-      return;
+      const files = [];
+      document.querySelectorAll("#files > div").forEach(r => {
+        const f = r.querySelector("input[type=file]").files[0];
+        const o = r.querySelector("input[type="text"]").value;
+        if (f) files.push({ file: f, offset: parseInt(o, 16) });
+      });
+
+      if (!files.length) {
+        alert("请至少选择一个固件文件");
+        return;
+      }
+
+      log("开始烧录...");
+      await esptool.write_flash({
+        flash_size: "keep",
+        files
+      });
+
+      log("烧录完成，重启设备");
+      await esptool.hard_reset();
+
+    } catch (e) {
+      log("错误: " + e.message);
+      console.error(e);
     }
-
-    log("开始烧录...");
-    await esptool.write_flash({
-      flash_size: "keep",
-      files
-    });
-
-    log("烧录完成，重启设备");
-    await esptool.hard_reset();
-
-  } catch (e) {
-    log("错误: " + e.message);
-    console.error(e);
-  }
-};
+  };
 </script>
 
 </body>
