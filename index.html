@@ -5,9 +5,6 @@
   <title>ESP32-C3 Web Flash (Minimal)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <!-- esptool-js（核心烧录库） -->
-  <script src="https://unpkg.com/esptool-js@0.4.6/dist/web/index.js"></script>
-
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -68,7 +65,9 @@
   <pre id="log"></pre>
 </div>
 
-<script>
+<script type="module">
+  import { ESPLoader, Transport } from
+    "https://unpkg.com/esptool-js@0.4.6/dist/web/index.js";
 let port, transport, esptool;
 
 const logEl = document.getElementById("log");
