@@ -2,168 +2,131 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <title>ESP32-C3 USB 在线固件升级</title>
+  <title>ESP32-C3 Web Flash (Minimal)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script
-  type="module"
-  src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js">
-</script>
+
+  <!-- esptool-js（核心烧录库） -->
+  <script src="https://unpkg.com/esptool-js@0.4.6/dist/web/index.js"></script>
 
   <style>
-  
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: system-ui, sans-serif;
       background: #0f172a;
       color: #e5e7eb;
       margin: 0;
-    }
-
-    header {
-      background: #020617;
       padding: 20px;
-      text-align: center;
-      border-bottom: 1px solid #1e293b;
     }
-
-    header h1 {
-      margin: 0;
-      font-size: 26px;
-    }
-
-    main {
-      max-width: 720px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
-
     .card {
       background: #020617;
       border: 1px solid #1e293b;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 20px;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
     }
-
-    .card h2 {
-      margin-top: 0;
-      font-size: 20px;
-    }
-
     button {
       background: #2563eb;
       border: none;
       color: white;
-      padding: 12px 20px;
-      font-size: 16px;
-      border-radius: 8px;
+      padding: 10px 16px;
+      border-radius: 6px;
       cursor: pointer;
     }
-
     button:hover {
       background: #1d4ed8;
     }
-
-    .hint {
-      font-size: 14px;
-      color: #94a3b8;
-      margin-top: 10px;
+    input[type="text"] {
+      width: 90px;
     }
-
-    footer {
-      text-align: center;
-      font-size: 13px;
-      color: #64748b;
-      padding: 30px 0;
-    }
-
-    code {
+    pre {
       background: #020617;
-      padding: 4px 6px;
-      border-radius: 6px;
+      border: 1px solid #1e293b;
+      padding: 10px;
+      height: 160px;
+      overflow: auto;
+      font-size: 12px;
     }
   </style>
 </head>
 
 <body>
 
-<header>
-  <h1>ESP32-C3 USB 在线固件升级</h1>
-  <p>基于 Web Serial API · 无需安装驱动</p>
-</header>
+<h2>ESP32-C3 USB 在线烧录（最小版）</h2>
 
-<main>
-
-  <div class="card">
-    <h2>① 连接设备</h2>
-    <button id="connectBtn">连接 ESP32-C3</button>
-    <div class="hint">
-      请使用支持 <code>Web Serial</code> 的浏览器（Chrome / Edge）
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>② 选择固件</h2>
-    <input type="file" id="firmware" accept=".bin">
-    <div class="hint">
-      请选择 <code>.bin</code> 固件文件
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>③ 开始升级</h2>
-    <esp-web-install-button
-  manifest="manifest.json">
-  <button slot="activate">
-    开始烧录固件
-  </button>
-</esp-web-install-button>
-
-<div class="hint">
-  点击后将通过 USB 烧录 ESP32-C3 固件
+<div class="card">
+  <h3>① 固件文件</h3>
+  <div id="files"></div>
+  <button id="add">添加固件</button>
 </div>
 
-  </div>
+<div class="card">
+  <h3>② 开始烧录</h3>
+  <button id="flash">开始烧录</button>
+</div>
 
-</main>
+<div class="card">
+  <h3>日志</h3>
+  <pre id="log"></pre>
+</div>
 
-<footer>
-  © 2025 ESP32-C3 Web USB Flash Tool
-</footer>
 <script>
-  const connectBtn = document.getElementById("connectBtn");
+let port, transport, esptool;
 
-  let port;
+const logEl = document.getElementById("log");
+const log = t => logEl.textContent += t + "\n";
 
-  connectBtn.addEventListener("click", async () => {
-    if (!("serial" in navigator)) {
-      alert("当前浏览器不支持 Web Serial API，请使用 Chrome 或 Edge");
+document.getElementById("add").onclick = () => {
+  const row = document.createElement("div");
+  row.innerHTML = `
+    <input type="file" accept=".bin">
+    Offset:
+    <input type="text" value="0x10000">
+  `;
+  document.getElementById("files").appendChild(row);
+};
+
+document.getElementById("flash").onclick = async () => {
+  try {
+    port = await navigator.serial.requestPort({
+      filters: [{ usbVendorId: 0x303A }]
+    });
+    await port.open({ baudRate: 115200 });
+
+    transport = new ESPLoader.Transport(port);
+    esptool = new ESPLoader.ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal: { write: log }
+    });
+
+    log("连接设备...");
+    await esptool.main();
+
+    const files = [];
+    document.querySelectorAll("#files > div").forEach(r => {
+      const f = r.querySelector("input[type=file]").files[0];
+      const o = r.querySelector("input[type=text]").value;
+      if (f) files.push({ file: f, offset: parseInt(o, 16) });
+    });
+
+    if (!files.length) {
+      alert("请至少选择一个固件文件");
       return;
     }
 
-    try {
-      // 请求串口设备（ESP32-C3）
-      port = await navigator.serial.requestPort({
-        filters: [
-          // Espressif VID（常见）
-          { usbVendorId: 0x303A }
-        ]
-      });
+    log("开始烧录...");
+    await esptool.write_flash({
+      flash_size: "keep",
+      files
+    });
 
-      await port.open({
-        baudRate: 115200
-      });
+    log("烧录完成，重启设备");
+    await esptool.hard_reset();
 
-      connectBtn.innerText = "已连接 ESP32-C3";
-      connectBtn.disabled = true;
-
-      console.log("ESP32-C3 已连接", port);
-
-      alert("ESP32-C3 连接成功！");
-    } catch (err) {
-      console.error("连接失败:", err);
-      alert("未连接设备或用户取消");
-    }
-  });
+  } catch (e) {
+    log("错误: " + e.message);
+    console.error(e);
+  }
+};
 </script>
 
 </body>
